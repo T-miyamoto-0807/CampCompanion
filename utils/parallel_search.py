@@ -258,128 +258,171 @@ def search_and_analyze(query, user_preferences=None, facilities_required=None):
     # 検索クエリから位置情報を抽出
     location = None
     if DEBUG:
-        print(f"\n===== parallel_search: クエリ: '{query}' =====")
+        print(f"\n===== search_and_analyze: クエリ: '{query}' =====")
+        print(f"ユーザー設定: {user_preferences}")
+        print(f"必須施設: {facilities_required}")
         print(f"位置情報: {location}")
 
-    # 検索を実行
-    search_results = parallel_search(query, location)
+        # 環境変数の確認
+        print(f"環境変数の設定:")
+        print(f"GEMINI_API_KEY: {'設定済み' if 'GEMINI_API_KEY' in os.environ else '未設定'}")
+        print(f"GOOGLE_PLACE_API_KEY: {'設定済み' if 'GOOGLE_PLACE_API_KEY' in os.environ else '未設定'}")
+        if "GOOGLE_PLACE_API_KEY" in os.environ:
+            print(f"GOOGLE_PLACE_API_KEY長さ: {len(os.environ['GOOGLE_PLACE_API_KEY'])}")
 
-    # 検索結果がない場合
-    if not search_results or not search_results.get("campsites"):
+    try:
+        # 検索を実行
+        search_results = parallel_search(query, location)
+
+        if DEBUG:
+            print(f"検索結果: {search_results}")
+
+        # エラーチェック
+        if isinstance(search_results, dict) and "error" in search_results:
+            error_message = search_results.get("error", "不明なエラー")
+            report_progress(f"❌ 検索中にエラーが発生しました: {error_message}")
+            return {
+                "results": [],
+                "summary": f"検索中にエラーが発生しました: {error_message}",
+                "featured_campsites": [],
+                "popular_campsites": [],
+                "error": error_message,
+            }
+
+        # 検索結果がない場合
+        if not search_results or not search_results.get("campsites"):
+            if DEBUG:
+                print("検索結果: 0件")
+            report_progress("ℹ️ 検索条件に合うキャンプ場が見つかりませんでした。")
+            return {
+                "results": [],
+                "summary": "検索条件に合うキャンプ場が見つかりませんでした。別のキーワードで検索してみてください。",
+                "featured_campsites": [],
+                "popular_campsites": [],
+            }
+
+        # 検索結果を取得
+        campsites = search_results.get("campsites", [])
+
+        if DEBUG:
+            print(f"キャンプ場件数: {len(campsites)}")
+            if campsites:
+                print(f"最初のキャンプ場: {campsites[0].get('name', '不明')}")
+
+        # 検索結果を評価
+        report_progress("⭐ 検索結果を評価しています...")
+
+        # クエリを解析
+        query_analysis = analyze_query(query)
+
+        # 検索結果を評価
+        campsites_with_scores = evaluate_search_results(query, query_analysis, campsites)
+
+        # 検索結果を整理
+        report_progress("📊 検索結果を整理しています...")
+
+        # スコアでソート
+        sorted_campsites = sorted(campsites_with_scores, key=lambda x: x.get("score", 0), reverse=True)
+
+        # 特集キャンプ場（スコアが高いもの）
+        featured_campsites = [c for c in sorted_campsites if c.get("score", 0) >= 0.7][:3]
+
+        # 人気キャンプ場（レビュー数が多いもの）
+        popular_campsites = sorted(campsites_with_scores, key=lambda x: x.get("reviews_count", 0), reverse=True)[:3]
+
+        if DEBUG:
+            print(f"特集キャンプ場: {len(featured_campsites)}件")
+            print(f"人気キャンプ場: {len(popular_campsites)}件")
+
+        # 写真を取得するキャンプ場のIDを特定（特集と人気のみ）
+        display_ids = set()
+        for camp in featured_campsites + popular_campsites:
+            display_ids.add(camp.get("place_id"))
+
+        if DEBUG:
+            print(f"写真取得対象のキャンプ場: {len(display_ids)}件")
+
+        # 写真取得を並列処理で行う
+        with ThreadPoolExecutor(max_workers=min(10, len(display_ids))) as executor:
+            # キャンプ場ごとに写真取得処理を実行
+            future_to_campsite = {
+                executor.submit(fetch_photos_for_campsite, camp): camp
+                for camp in campsites_with_scores
+                if camp.get("place_id") in display_ids
+            }
+
+            # 結果を取得
+            for future in concurrent.futures.as_completed(future_to_campsite):
+                campsite = future_to_campsite[future]
+                try:
+                    photo_urls = future.result()
+                    # 写真URLをキャンプ場データに追加
+                    if photo_urls:
+                        campsite["photo_urls"] = photo_urls
+                        campsite["image_url"] = photo_urls[0] if photo_urls else ""
+                        if DEBUG:
+                            print(f"写真URL取得成功: {campsite.get('name')} - {len(photo_urls)}枚")
+                except Exception as e:
+                    if DEBUG:
+                        print(f"写真取得エラー ({campsite.get('name')}): {str(e)}")
+
+        # 口コミ分析を行うキャンプ場を特定（特集と人気のみ）
+        report_progress("📊 口コミを分析しています...")
+        with ThreadPoolExecutor(max_workers=min(6, len(display_ids))) as executor:
+            # キャンプ場ごとに口コミ分析を実行
+            future_to_analysis = {
+                executor.submit(analyze_campsite_reviews, camp, user_preferences): camp
+                for camp in campsites_with_scores
+                if camp.get("place_id") in display_ids
+            }
+
+            # 結果を取得
+            for future in concurrent.futures.as_completed(future_to_analysis):
+                campsite = future_to_analysis[future]
+                try:
+                    analysis = future.result()
+                    # 分析結果をキャンプ場データに追加
+                    if analysis:
+                        campsite["review_summary"] = analysis.get("summary", "")
+                        campsite["ai_recommendation"] = analysis.get("recommendation", "")
+                        if DEBUG:
+                            print(f"口コミ分析成功: {campsite.get('name')}")
+                except Exception as e:
+                    if DEBUG:
+                        print(f"口コミ分析エラー ({campsite.get('name')}): {str(e)}")
+
+        # 検索結果の要約を生成
+        report_progress("📝 検索結果の要約を生成しています...")
+        summary = generate_search_summary(query, query_analysis, campsites_with_scores)
+
+        # 検索完了
+        report_progress(f"✅ 検索が完了しました！{len(campsites_with_scores)}件のキャンプ場が見つかりました。")
+
+        if DEBUG:
+            print(f"検索結果: {len(campsites_with_scores)}件")
+            print("検索が完了しました")
+
+        return {
+            "results": campsites_with_scores,
+            "summary": summary,
+            "featured_campsites": featured_campsites,
+            "popular_campsites": popular_campsites,
+        }
+
+    except Exception as e:
+        if DEBUG:
+            print(f"search_and_analyze エラー: {str(e)}")
+            import traceback
+
+            print(traceback.format_exc())
+        report_progress(f"❌ 検索処理中にエラーが発生しました: {str(e)}")
         return {
             "results": [],
-            "summary": "検索条件に合うキャンプ場が見つかりませんでした。",
+            "summary": f"検索処理中にエラーが発生しました: {str(e)}",
             "featured_campsites": [],
             "popular_campsites": [],
+            "error": str(e),
         }
-
-    # 検索結果を取得
-    campsites = search_results.get("campsites", [])
-
-    # 検索結果を評価
-    report_progress("⭐ 検索結果を評価しています...")
-
-    # クエリを解析
-    query_analysis = analyze_query(query)
-
-    # 検索結果を評価
-    campsites_with_scores = evaluate_search_results(query, query_analysis, campsites)
-
-    # 検索結果を整理
-    report_progress("📊 検索結果を整理しています...")
-
-    # スコアでソート
-    sorted_campsites = sorted(campsites_with_scores, key=lambda x: x.get("score", 0), reverse=True)
-
-    # 特集キャンプ場（スコアが高いもの）
-    featured_campsites = [c for c in sorted_campsites if c.get("score", 0) >= 0.7][:3]
-
-    # 人気キャンプ場（レビュー数が多いもの）
-    popular_campsites = sorted(campsites_with_scores, key=lambda x: x.get("reviews_count", 0), reverse=True)[:3]
-
-    if DEBUG:
-        print(f"特集キャンプ場: {len(featured_campsites)}件")
-        for i, camp in enumerate(featured_campsites[:3], 1):
-            print(f"{i}. {camp.get('name')} - スコア: {camp.get('score')}")
-
-        print(f"人気キャンプ場: {len(popular_campsites)}件")
-        for i, camp in enumerate(popular_campsites[:3], 1):
-            print(f"{i}. {camp.get('name')} - 口コミ: {camp.get('reviews_count')}件")
-
-    # 写真を取得するキャンプ場のIDを特定（特集と人気のみ）
-    display_ids = set()
-    for camp in featured_campsites + popular_campsites:
-        display_ids.add(camp.get("place_id"))
-
-    if DEBUG:
-        print(f"写真取得対象のキャンプ場: {len(display_ids)}件")
-
-    # 写真取得を並列処理で行う
-    with ThreadPoolExecutor(max_workers=min(10, len(display_ids))) as executor:
-        # キャンプ場ごとに写真取得処理を実行
-        future_to_campsite = {
-            executor.submit(fetch_photos_for_campsite, camp): camp
-            for camp in campsites_with_scores
-            if camp.get("place_id") in display_ids
-        }
-
-        # 結果を取得
-        for future in concurrent.futures.as_completed(future_to_campsite):
-            campsite = future_to_campsite[future]
-            try:
-                photo_urls = future.result()
-                # 写真URLをキャンプ場データに追加
-                if photo_urls:
-                    campsite["photo_urls"] = photo_urls
-                    campsite["image_url"] = photo_urls[0] if photo_urls else ""
-                    if DEBUG:
-                        print(f"写真URL取得成功: {campsite.get('name')} - {len(photo_urls)}枚")
-            except Exception as e:
-                if DEBUG:
-                    print(f"写真取得エラー ({campsite.get('name')}): {str(e)}")
-
-    # 口コミ分析を行うキャンプ場を特定（特集と人気のみ）
-    report_progress("📊 口コミを分析しています...")
-    with ThreadPoolExecutor(max_workers=min(6, len(display_ids))) as executor:
-        # キャンプ場ごとに口コミ分析を実行
-        future_to_analysis = {
-            executor.submit(analyze_campsite_reviews, camp, user_preferences): camp
-            for camp in campsites_with_scores
-            if camp.get("place_id") in display_ids
-        }
-
-        # 結果を取得
-        for future in concurrent.futures.as_completed(future_to_analysis):
-            campsite = future_to_analysis[future]
-            try:
-                analysis = future.result()
-                # 分析結果をキャンプ場データに追加
-                if analysis:
-                    campsite["review_summary"] = analysis.get("summary", "")
-                    campsite["ai_recommendation"] = analysis.get("recommendation", "")
-                    if DEBUG:
-                        print(f"口コミ分析成功: {campsite.get('name')}")
-            except Exception as e:
-                if DEBUG:
-                    print(f"口コミ分析エラー ({campsite.get('name')}): {str(e)}")
-
-    # 検索結果の要約を生成
-    report_progress("📝 検索結果の要約を生成しています...")
-    summary = generate_search_summary(query, query_analysis, campsites_with_scores)
-
-    # 検索完了
-    report_progress(f"✅ 検索が完了しました！{len(campsites_with_scores)}件のキャンプ場が見つかりました。")
-
-    if DEBUG:
-        print(f"検索結果: {len(campsites_with_scores)}件")
-        print("検索が完了しました")
-
-    return {
-        "results": campsites_with_scores,
-        "summary": summary,
-        "featured_campsites": featured_campsites,
-        "popular_campsites": popular_campsites,
-    }
 
 
 def fetch_photos_for_campsite(campsite):
