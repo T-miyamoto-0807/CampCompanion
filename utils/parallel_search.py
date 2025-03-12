@@ -393,7 +393,14 @@ def search_and_analyze(query, user_preferences=None, facilities_required=None):
 
         # 検索結果の要約を生成
         report_progress("📝 検索結果の要約を生成しています...")
-        summary = generate_search_summary(query, query_analysis, campsites_with_scores)
+        summary = generate_search_summary(
+            query,
+            query_analysis,
+            campsites_with_scores,
+            max_results=5,
+            perfect_match_campsites=featured_campsites,
+            popular_campsites=popular_campsites,
+        )
 
         # 検索完了
         report_progress(f"✅ 検索が完了しました！{len(campsites_with_scores)}件のキャンプ場が見つかりました。")
