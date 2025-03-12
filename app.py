@@ -424,7 +424,7 @@ if "search_in_progress" in st.session_state and st.session_state.search_in_progr
 
                     # 完了メッセージ
                     report_progress(
-                        f"✅ 検索が完了しました！{len(search_results.get('results', []))}件のキャンプ場が見つかりました。"
+                        f"✅ 検索が完了しました！{len(search_results.get('results', []))}件のキャンプ場が見つかりました。AIで分析しておすすめのキャンプ場をピックアップします！"
                     )
 
                     if DEBUG:
