@@ -15,11 +15,9 @@ DEBUG = True  # デバッグモードを強制的に有効化
 # Google Places APIの設定
 GOOGLE_PLACE_API_KEY = os.getenv("GOOGLE_PLACE_API_KEY")
 
-# APIキーが設定されていない場合のフォールバック
+# APIキーが設定されていない場合の警告
 if not GOOGLE_PLACE_API_KEY:
-    print("警告: GOOGLE_PLACE_API_KEYが設定されていません。デフォルト値を使用します。")
-    GOOGLE_PLACE_API_KEY = "AIzaSyC0SPzVvIXEfzvIfbvJ1ShsP44mbXa0Op4"
-    os.environ["GOOGLE_PLACE_API_KEY"] = GOOGLE_PLACE_API_KEY
+    print("警告: GOOGLE_PLACE_API_KEYが設定されていません。.envファイルまたはStreamlit Secretsを確認してください。")
 
 # 写真URLのキャッシュ
 photo_cache = {}
@@ -55,15 +53,30 @@ def get_place_photo_new(photo_name):
             print(f"[Places API] ヘッダー: {headers}")
 
         # 直接URLを返す（リダイレクトを含む）
+        # 写真URLを生成する際に、maxHeightPxとmaxWidthPxを指定して、適切なサイズの画像を取得
         photo_url = f"{base_url}?key={api_key}&maxHeightPx=800&maxWidthPx=800"
 
         if DEBUG:
             print(f"[Places API] 写真URL生成: {photo_url[:50]}...")
 
-        # キャッシュに保存
-        photo_cache[photo_name] = photo_url
-
-        return photo_url
+        # 実際にリクエストを送信して、リダイレクト先のURLを取得
+        try:
+            response = requests.head(photo_url, allow_redirects=True)
+            if response.status_code == 200:
+                final_url = response.url
+                # キャッシュに保存
+                photo_cache[photo_name] = final_url
+                return final_url
+            else:
+                if DEBUG:
+                    print(f"[Places API] 写真URL取得エラー: ステータスコード {response.status_code}")
+                return photo_url  # エラーの場合でも元のURLを返す
+        except Exception as redirect_error:
+            if DEBUG:
+                print(f"[Places API] リダイレクト取得エラー: {str(redirect_error)}")
+            # エラーが発生した場合は元のURLを返す
+            photo_cache[photo_name] = photo_url
+            return photo_url
 
     except Exception as e:
         if DEBUG:
