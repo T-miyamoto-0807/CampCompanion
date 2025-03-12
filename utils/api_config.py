@@ -5,7 +5,6 @@ APIキーと環境変数の設定を一元管理するモジュール
 import os
 import sys
 from dotenv import load_dotenv
-import streamlit as st
 
 # 環境変数の読み込み
 load_dotenv()
@@ -14,90 +13,23 @@ load_dotenv()
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
 
-def load_streamlit_secrets():
-    """Streamlit Cloudのシークレットから環境変数を設定する関数"""
-    try:
-        # st.secretsが存在するか確認
-        if not hasattr(st, "secrets"):
-            print("st.secretsが存在しません")
-            return False
-
-        # st.secretsにアクセスしようとしたときにFileNotFoundErrorが発生する可能性があるため、try-exceptで囲む
-        try:
-            # 直接st.secretsにアクセスする前に、FileNotFoundErrorを回避するための処理
-            # 以下の行でFileNotFoundErrorが発生する可能性があるため、try-exceptで囲む
-            secrets_exists = False
-            try:
-                # この行でFileNotFoundErrorが発生する可能性がある
-                secrets_exists = hasattr(st, "secrets") and len(dir(st.secrets)) > 0
-            except FileNotFoundError:
-                print("Secretsファイルが見つかりません")
-                return False
-            except Exception as e:
-                print(f"Secretsアクセスエラー: {str(e)}")
-                return False
-
-            if not secrets_exists:
-                print("Secretsが存在しないか空です")
-                return False
-
-            # StreamlitCloudのシークレットから環境変数を設定
-            # APIキーの設定
-            try:
-                if "GEMINI_API_KEY" in st.secrets:
-                    os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
-                if "OPENAI_API_KEY" in st.secrets:
-                    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
-                if "GOOGLE_CSE_ID" in st.secrets:
-                    os.environ["GOOGLE_CSE_ID"] = st.secrets["GOOGLE_CSE_ID"]
-                if "GOOGLE_API_KEY" in st.secrets:
-                    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
-                if "GOOGLE_PLACE_API_KEY" in st.secrets:
-                    os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["GOOGLE_PLACE_API_KEY"]
-                if "MAPBOX_TOKEN" in st.secrets:
-                    os.environ["MAPBOX_TOKEN"] = st.secrets["MAPBOX_TOKEN"]
-
-                # デバッグ設定
-                if "DEBUG" in st.secrets:
-                    os.environ["DEBUG"] = str(st.secrets["DEBUG"]).lower()
-
-                print("StreamlitCloudのSecretsから環境変数を設定しました")
-                return True
-            except FileNotFoundError:
-                print("Secretsファイルが見つかりません")
-                return False
-            except Exception as e:
-                print(f"Secrets設定エラー: {str(e)}")
-                return False
-        except FileNotFoundError:
-            print("Secretsファイルが見つかりません")
-            return False
-        except Exception as e:
-            print(f"Secretsアクセスエラー: {str(e)}")
-            return False
-    except Exception as e:
-        print(f"Secretsの読み込みエラー: {str(e)}")
-        return False
-
-
-# StreamlitCloudのシークレットから環境変数を設定
-try:
-    load_streamlit_secrets()
-except Exception as e:
-    print(f"StreamlitCloudの環境変数設定エラー: {str(e)}")
-
-
 # APIキーの確認と警告表示
 def check_api_keys():
     """必要なAPIキーが設定されているか確認し、警告を表示する関数"""
     if not os.environ.get("GEMINI_API_KEY"):
-        print("警告: GEMINI_API_KEYが設定されていません。.envファイルに追加してください。")
+        print(
+            "警告: GEMINI_API_KEYが設定されていません。.envファイルまたはStreamlitCloudの環境変数に追加してください。"
+        )
 
     if not os.environ.get("GOOGLE_PLACE_API_KEY"):
-        print("警告: GOOGLE_PLACE_API_KEYが設定されていません。.envファイルに追加してください。")
+        print(
+            "警告: GOOGLE_PLACE_API_KEYが設定されていません。.envファイルまたはStreamlitCloudの環境変数に追加してください。"
+        )
 
     if not os.environ.get("GOOGLE_API_KEY"):
-        print("警告: GOOGLE_API_KEYが設定されていません。.envファイルに追加してください。")
+        print(
+            "警告: GOOGLE_API_KEYが設定されていません。.envファイルまたはStreamlitCloudの環境変数に追加してください。"
+        )
 
 
 # APIキーの確認
