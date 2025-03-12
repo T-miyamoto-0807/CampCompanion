@@ -108,3 +108,11 @@ try:
         print("Gemini APIキーが設定されていないため、初期化をスキップします")
 except Exception as e:
     print(f"Gemini API初期化エラー: {str(e)}")
+
+# 他のモジュールからインポートするための変数をエクスポート
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID", "")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+GOOGLE_PLACE_API_KEY = os.environ.get("GOOGLE_PLACE_API_KEY", "")
+MAPBOX_TOKEN = os.environ.get("MAPBOX_TOKEN", "")
