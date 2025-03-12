@@ -15,9 +15,11 @@ DEBUG = True  # デバッグモードを強制的に有効化
 # Google Places APIの設定
 GOOGLE_PLACE_API_KEY = os.getenv("GOOGLE_PLACE_API_KEY")
 
-# APIキーが設定されていない場合のエラーメッセージ
+# APIキーが設定されていない場合のフォールバック
 if not GOOGLE_PLACE_API_KEY:
-    print("警告: GOOGLE_PLACE_API_KEYが設定されていません。.envファイルに追加してください。")
+    print("警告: GOOGLE_PLACE_API_KEYが設定されていません。デフォルト値を使用します。")
+    GOOGLE_PLACE_API_KEY = "AIzaSyC0SPzVvIXEfzvIfbvJ1ShsP44mbXa0Op4"
+    os.environ["GOOGLE_PLACE_API_KEY"] = GOOGLE_PLACE_API_KEY
 
 # 写真URLのキャッシュ
 photo_cache = {}
@@ -123,13 +125,17 @@ def search_campsites_new(query, location=None, radius=50000):
     """
     if DEBUG:
         print(f"\n===== search_campsites_new =====")
+        print(f"検索クエリ: '{query}'")
         print(f"location: {location}, radius: {radius}")
+        print(f"GOOGLE_PLACE_API_KEY: {'設定済み' if GOOGLE_PLACE_API_KEY else '未設定'}")
+        print(f"GOOGLE_PLACE_API_KEY長さ: {len(GOOGLE_PLACE_API_KEY) if GOOGLE_PLACE_API_KEY else 0}")
 
     # APIキーが設定されていない場合はエラー
     if not GOOGLE_PLACE_API_KEY:
+        error_msg = "APIキーが設定されていません。StreamlitCloudのSecretsまたは.envファイルを確認してください。"
         if DEBUG:
-            print("[Places API] APIキーが設定されていません")
-        return {"error": "APIキーが設定されていません"}
+            print(f"[Places API] エラー: {error_msg}")
+        return {"error": error_msg}
 
     try:
         # ベースURL
@@ -144,7 +150,7 @@ def search_campsites_new(query, location=None, radius=50000):
 
         # リクエストボディ
         body = {
-            "textQuery": query,
+            "textQuery": f"{query} キャンプ場",  # 「キャンプ場」を明示的に追加
             "languageCode": "ja",
             "regionCode": "JP",
             "maxResultCount": 20,
@@ -164,7 +170,8 @@ def search_campsites_new(query, location=None, radius=50000):
 
         if DEBUG:
             print(f"[Places API] APIリクエスト: {base_url}")
-            print(f"[Places API] リクエストボディ: {json.dumps(body)}")
+            print(f"[Places API] リクエストヘッダー: {headers}")
+            print(f"[Places API] リクエストボディ: {json.dumps(body, ensure_ascii=False)}")
 
         # APIリクエスト
         response = requests.post(base_url, headers=headers, json=body)
@@ -172,6 +179,11 @@ def search_campsites_new(query, location=None, radius=50000):
         # レスポンスのステータスコードを確認
         if DEBUG:
             print(f"[Places API] レスポンスステータス: {response.status_code}")
+            print(f"[Places API] レスポンスヘッダー: {dict(response.headers)}")
+            try:
+                print(f"[Places API] レスポンス内容: {json.dumps(response.json(), ensure_ascii=False)[:500]}...")
+            except:
+                print(f"[Places API] レスポンス内容: {response.text[:500]}...")
 
         if response.status_code != 200:
             error_message = f"API Error: {response.status_code}"
@@ -185,16 +197,43 @@ def search_campsites_new(query, location=None, radius=50000):
                     "status_code": 503,
                 }
 
+            # 401エラー（認証エラー）の場合
+            if response.status_code == 401:
+                return {
+                    "error": "Google Places APIの認証に失敗しました。APIキーを確認してください。",
+                    "status_code": 401,
+                }
+
+            # 403エラー（権限エラー）の場合
+            if response.status_code == 403:
+                return {
+                    "error": "Google Places APIへのアクセス権限がありません。APIキーの権限設定を確認してください。",
+                    "status_code": 403,
+                }
+
             # その他のエラー
-            return {"error": error_message}
+            return {"error": error_message, "response_text": response.text[:500]}
 
         # JSONレスポンスを解析
         data = response.json()
+
+        # 検索結果がない場合
+        if "places" not in data or not data["places"]:
+            if DEBUG:
+                print("[Places API] 検索結果: 0件")
+            return {"places": []}
+
+        if DEBUG:
+            print(f"[Places API] 検索結果: {len(data.get('places', []))}件")
+
         return data
 
     except Exception as e:
         if DEBUG:
             print(f"[Places API] 例外発生: {str(e)}")
+            import traceback
+
+            print(traceback.format_exc())
         return {"error": str(e)}
 
 

@@ -10,9 +10,11 @@ load_dotenv()
 # Gemini APIの設定
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# APIキーが設定されていない場合のエラーメッセージ
+# APIキーが設定されていない場合のフォールバック
 if not GEMINI_API_KEY:
-    print("警告: GEMINI_API_KEYが設定されていません。.envファイルに追加してください。")
+    print("警告: GEMINI_API_KEYが設定されていません。デフォルト値を使用します。")
+    GEMINI_API_KEY = "AIzaSyAQcZQn8vnm4-zFdWqLgXdNYn0LTWb9T28"
+    os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
 
 # Gemini APIの初期化
 try:

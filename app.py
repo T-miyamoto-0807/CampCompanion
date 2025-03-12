@@ -22,18 +22,24 @@ import concurrent.futures
 import queue
 
 # StreamlitCloudの環境変数設定
-if "api_keys" in st.secrets:
-    # StreamlitのSecretsから環境変数を設定
-    os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
-    os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
-    os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
-    os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
-    os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
-    os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
+try:
+    if "api_keys" in st.secrets:
+        # StreamlitのSecretsから環境変数を設定
+        os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
+        os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
+        os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
+        os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
+        os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
+        os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
 
-    # デバッグ設定
-    if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
-        os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
+        # デバッグ設定
+        if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
+            os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
+
+        print("StreamlitCloudのSecretsから環境変数を設定しました")
+except Exception as e:
+    print(f"Secretsの読み込みエラー: {str(e)}")
+    print("ローカルの環境変数を使用します")
 
 # ローカル環境変数の読み込み
 load_dotenv()
@@ -51,6 +57,23 @@ if DEBUG:
     print(f"GOOGLE_PLACE_API_KEY: {'設定済み' if 'GOOGLE_PLACE_API_KEY' in os.environ else '未設定'}")
     print(f"MAPBOX_TOKEN: {'設定済み' if 'MAPBOX_TOKEN' in os.environ else '未設定'}")
     print(f"DEBUG: {DEBUG}")
+
+# 環境変数が設定されていない場合は直接設定
+if "GEMINI_API_KEY" not in os.environ:
+    os.environ["GEMINI_API_KEY"] = "AIzaSyAQcZQn8vnm4-zFdWqLgXdNYn0LTWb9T28"
+    print("GEMINI_API_KEYを直接設定しました")
+
+if "GOOGLE_PLACE_API_KEY" not in os.environ:
+    os.environ["GOOGLE_PLACE_API_KEY"] = "AIzaSyC0SPzVvIXEfzvIfbvJ1ShsP44mbXa0Op4"
+    print("GOOGLE_PLACE_API_KEYを直接設定しました")
+
+if "GOOGLE_API_KEY" not in os.environ:
+    os.environ["GOOGLE_API_KEY"] = "AIzaSyC0SPzVvIXEfzvIfbvJ1ShsP44mbXa0Op4"
+    print("GOOGLE_API_KEYを直接設定しました")
+
+if "GOOGLE_CSE_ID" not in os.environ:
+    os.environ["GOOGLE_CSE_ID"] = "d051e871b07a04cd6"
+    print("GOOGLE_CSE_IDを直接設定しました")
 
 # ページ設定
 st.set_page_config(
