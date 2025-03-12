@@ -58,23 +58,6 @@ if DEBUG:
     print(f"MAPBOX_TOKEN: {'設定済み' if 'MAPBOX_TOKEN' in os.environ else '未設定'}")
     print(f"DEBUG: {DEBUG}")
 
-# 環境変数が設定されていない場合は直接設定
-if "GEMINI_API_KEY" not in os.environ:
-    os.environ["GEMINI_API_KEY"] = "AIzaSyAQcZQn8vnm4-zFdWqLgXdNYn0LTWb9T28"
-    print("GEMINI_API_KEYを直接設定しました")
-
-if "GOOGLE_PLACE_API_KEY" not in os.environ:
-    os.environ["GOOGLE_PLACE_API_KEY"] = "AIzaSyC0SPzVvIXEfzvIfbvJ1ShsP44mbXa0Op4"
-    print("GOOGLE_PLACE_API_KEYを直接設定しました")
-
-if "GOOGLE_API_KEY" not in os.environ:
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyC0SPzVvIXEfzvIfbvJ1ShsP44mbXa0Op4"
-    print("GOOGLE_API_KEYを直接設定しました")
-
-if "GOOGLE_CSE_ID" not in os.environ:
-    os.environ["GOOGLE_CSE_ID"] = "d051e871b07a04cd6"
-    print("GOOGLE_CSE_IDを直接設定しました")
-
 # ページ設定
 st.set_page_config(
     page_title="CampCompanion - キャンプ場検索",
@@ -486,149 +469,180 @@ if "search_in_progress" in st.session_state and st.session_state.search_in_progr
     time.sleep(0.5)
     st.rerun()
 
-# ユーザー入力
-user_input = st.chat_input("キャンプ場について質問してください...")
+    # 検索結果を表示（検索実行後）
+    if st.session_state.search_performed and st.session_state.campsites and st.session_state.show_results:
+        # 検索結果がある場合
+        if st.session_state.campsites:
+            # 検索結果のタブを作成
+            tab1, tab2, tab3 = st.tabs(["📋 検索結果", "🗺️ 地図", "📚 関連記事"])
 
-# ユーザーからの入力があった場合の処理
-if user_input:
-    # デバッグ出力
-    if DEBUG:
-        print(f"\n===== ユーザー入力: '{user_input}' =====")
-        print("検索処理を開始します...")
+            with tab1:
+                # 検索結果の表示
+                display_search_results()
 
-    # ユーザーのメッセージをチャット履歴に追加
-    st.session_state.messages.append({"role": "user", "content": user_input})
+            with tab2:
+                # 地図表示
+                display_map(st.session_state.campsites)
 
-    # 検索開始メッセージを表示
-    start_message = "🔎 キャンプ場を検索中です。少々お待ちください..."
-    st.session_state.messages.append({"role": "assistant", "content": start_message})
+            with tab3:
+                # 関連記事の表示
+                st.subheader("📚 関連記事・特集")
+                st.write("検索内容に関連する特集記事やまとめ記事です。参考にしてキャンプ計画を立ててみましょう。")
 
-    # 検索状態を設定
-    st.session_state.search_in_progress = True
-    st.session_state.search_executed = False
+                # 関連記事を取得
+                if "search_query" in st.session_state:
+                    query = st.session_state.search_query
 
-    # 検索クエリを保存
-    st.session_state.search_query = user_input
+                    with st.spinner("関連記事を検索中..."):
+                        # 関連記事を検索
+                        related_articles = search_related_articles(query)
 
-    # 進捗状況を明示的に設定
-    st.session_state.current_progress = "キャンプ場を検索しています..."
+                    # 関連記事を表示
+                    if related_articles:
+                        # 記事カードのスタイル
+                        st.markdown(
+                            """
+                        <style>
+                        .article-card {
+                            border: 1px solid #ddd;
+                            border-radius: 5px;
+                            padding: 10px;
+                            margin-bottom: 10px;
+                            background-color: #f9f9f9;
+                        }
+                        .article-title {
+                            font-size: 18px;
+                            font-weight: bold;
+                            margin-bottom: 5px;
+                        }
+                        .article-source {
+                            color: #666;
+                            font-size: 14px;
+                            margin-bottom: 10px;
+                        }
+                        .article-summary {
+                            margin-bottom: 10px;
+                        }
+                        </style>
+                        """,
+                            unsafe_allow_html=True,
+                        )
 
-    # 進捗状況の初期化
-    st.session_state.current_progress = start_message
+                        for i, article in enumerate(related_articles):
+                            # Expanderのタイトルを短くして見やすくする
+                            title_display = article["title"]
+                            if len(title_display) > 60:
+                                title_display = title_display[:57] + "..."
 
-    # 進捗キューをクリア
-    try:
-        while not global_progress_queue.empty():
-            global_progress_queue.get()
-        if DEBUG:
-            print("進捗キューをクリアしました")
-    except Exception as e:
-        if DEBUG:
-            print(f"進捗キュークリアエラー: {str(e)}")
+                            with st.expander(f"{title_display}", expanded=i == 0):
+                                # 記事タイトルを完全に表示（Expander内）
+                                st.markdown(f"### {article['title']}")
+                                st.markdown(f"**出典**: {article['source']}")
 
-    # 画面を更新して検索開始メッセージを表示
-    st.rerun()
+                                # 要約を表示（テキストエリアで表示して見切れないようにする）
+                                st.markdown("**要約**:")
+                                # テキストエリアを使用して長いテキストを表示（高さを調整）
+                                summary_text = article["summary"]
+                                st.text_area("", summary_text, height=200, label_visibility="collapsed")
 
-# 検索結果を表示（検索実行後）
-if st.session_state.search_performed and st.session_state.campsites and st.session_state.show_results:
-    # 検索結果がある場合
-    if st.session_state.campsites:
-        # 検索結果のタブを作成
-        tab1, tab2, tab3 = st.tabs(["📋 検索結果", "🗺️ 地図", "📚 関連記事"])
+                                # 公開日があれば表示
+                                if "published_date" in article:
+                                    try:
+                                        # 日付形式を整形
+                                        from datetime import datetime
 
-        with tab1:
-            # 検索結果の表示
-            display_search_results()
+                                        date_obj = datetime.fromisoformat(
+                                            article["published_date"].replace("Z", "+00:00")
+                                        )
+                                        formatted_date = date_obj.strftime("%Y年%m月%d日")
+                                        st.markdown(f"**公開日**: {formatted_date}")
+                                    except:
+                                        pass
 
-        with tab2:
-            # 地図表示
-            display_map(st.session_state.campsites)
-
-        with tab3:
-            # 関連記事の表示
-            st.subheader("📚 関連記事・特集")
-            st.write("検索内容に関連する特集記事やまとめ記事です。参考にしてキャンプ計画を立ててみましょう。")
-
-            # 関連記事を取得
-            if "search_query" in st.session_state:
-                query = st.session_state.search_query
-
-                with st.spinner("関連記事を検索中..."):
-                    # 関連記事を検索
-                    related_articles = search_related_articles(query)
-
-                # 関連記事を表示
-                if related_articles:
-                    # 記事カードのスタイル
-                    st.markdown(
-                        """
-                    <style>
-                    .article-card {
-                        border: 1px solid #ddd;
-                        border-radius: 5px;
-                        padding: 10px;
-                        margin-bottom: 10px;
-                        background-color: #f9f9f9;
-                    }
-                    .article-title {
-                        font-size: 18px;
-                        font-weight: bold;
-                        margin-bottom: 5px;
-                    }
-                    .article-source {
-                        color: #666;
-                        font-size: 14px;
-                        margin-bottom: 10px;
-                    }
-                    .article-summary {
-                        margin-bottom: 10px;
-                    }
-                    </style>
-                    """,
-                        unsafe_allow_html=True,
-                    )
-
-                    for i, article in enumerate(related_articles):
-                        # Expanderのタイトルを短くして見やすくする
-                        title_display = article["title"]
-                        if len(title_display) > 60:
-                            title_display = title_display[:57] + "..."
-
-                        with st.expander(f"{title_display}", expanded=i == 0):
-                            # 記事タイトルを完全に表示（Expander内）
-                            st.markdown(f"### {article['title']}")
-                            st.markdown(f"**出典**: {article['source']}")
-
-                            # 要約を表示（テキストエリアで表示して見切れないようにする）
-                            st.markdown("**要約**:")
-                            # テキストエリアを使用して長いテキストを表示（高さを調整）
-                            summary_text = article["summary"]
-                            st.text_area("", summary_text, height=200, label_visibility="collapsed")
-
-                            # 公開日があれば表示
-                            if "published_date" in article:
-                                try:
-                                    # 日付形式を整形
-                                    from datetime import datetime
-
-                                    date_obj = datetime.fromisoformat(article["published_date"].replace("Z", "+00:00"))
-                                    formatted_date = date_obj.strftime("%Y年%m月%d日")
-                                    st.markdown(f"**公開日**: {formatted_date}")
-                                except:
-                                    pass
-
-                            # リンクボタン
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.markdown(f"[🔗 記事を読む]({article['url']})")
-                            with col2:
-                                st.markdown(
-                                    f"[🔍 Googleで検索](https://www.google.com/search?q={urllib.parse.quote(article['title'])})"
-                                )
+                                # リンクボタン
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    st.markdown(f"[🔗 記事を読む]({article['url']})")
+                                with col2:
+                                    st.markdown(
+                                        f"[🔍 Googleで検索](https://www.google.com/search?q={urllib.parse.quote(article['title'])})"
+                                    )
+                    else:
+                        st.info(f"「{query}」に関連する記事が見つかりませんでした。")
                 else:
-                    st.info(f"「{query}」に関連する記事が見つかりませんでした。")
-            else:
-                st.info("検索クエリがありません。キャンプ場を検索すると、関連記事が表示されます。")
+                    st.warning("条件に合うキャンプ場が見つかりませんでした。検索条件を変更してお試しください。")
+
+    # 入力欄を最下層に固定表示するためのスタイル
+    st.markdown(
+        """
+        <style>
+        .fixed-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background-color: white;
+            box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .main .block-container {
+            padding-bottom: 5rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 空のスペースを追加して、固定入力欄の下に余白を作る
+    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
+
+    # 固定入力欄のコンテナ
+    with st.container():
+        st.markdown("<div class='fixed-input'>", unsafe_allow_html=True)
+        # ユーザー入力
+        user_input = st.chat_input("キャンプ場について質問してください...")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # ユーザーからの入力があった場合の処理
+        if user_input:
+            # デバッグ出力
+            if DEBUG:
+                print(f"\n===== ユーザー入力: '{user_input}' =====")
+                print("検索処理を開始します...")
+
+            # ユーザーのメッセージをチャット履歴に追加
+            st.session_state.messages.append({"role": "user", "content": user_input})
+
+            # 検索開始メッセージを表示
+            start_message = "🔎 キャンプ場を検索中です。少々お待ちください..."
+            st.session_state.messages.append({"role": "assistant", "content": start_message})
+
+            # 検索状態を設定
+            st.session_state.search_in_progress = True
+            st.session_state.search_executed = False
+
+            # 検索クエリを保存
+            st.session_state.search_query = user_input
+
+            # 進捗状況を明示的に設定
+            st.session_state.current_progress = "キャンプ場を検索しています..."
+
+            # 進捗状況の初期化
+            st.session_state.current_progress = start_message
+
+            # 進捗キューをクリア
+            try:
+                while not global_progress_queue.empty():
+                    global_progress_queue.get()
+                if DEBUG:
+                    print("進捗キューをクリアしました")
+            except Exception as e:
+                if DEBUG:
+                    print(f"進捗キュークリアエラー: {str(e)}")
+
+            # 画面を更新して検索開始メッセージを表示
+            st.rerun()
 
 
 # キャンプ場カードを表示する関数
@@ -870,36 +884,8 @@ def search_related_articles(query):
             print(f"関連記事検索: クエリ='{query}'")
 
         # web_search.pyの関数を使用して関連記事を検索
-        related_articles = web_search_articles(query, max_results=5, enhance_summaries=True)
+        return web_search_articles(query, max_results=5, enhance_summaries=True)
 
-        # 検索結果がない場合はダミーデータを返す
-        if not related_articles:
-            if DEBUG:
-                print("関連記事が見つからないため、ダミーデータを使用")
-
-            # ダミーデータ
-            related_articles = [
-                {
-                    "title": f"{query}周辺のおすすめキャンプ場10選",
-                    "url": "https://example.com/article1",
-                    "summary": f"{query}エリアには多くの魅力的なキャンプ場があります。この記事では、初心者から上級者まで楽しめる厳選10箇所をご紹介します。自然の中でのんびり過ごしたい方にぴったりのスポットばかりです。",
-                    "source": "キャンプ場ガイド",
-                },
-                {
-                    "title": f"{query}で楽しむ冬キャンプの魅力",
-                    "url": "https://example.com/article2",
-                    "summary": "冬のキャンプは夏とは違った魅力があります。澄んだ空気の中で見る星空は格別です。この記事では、防寒対策や必要な装備、おすすめの料理などを詳しく解説しています。",
-                    "source": "アウトドア専門誌",
-                },
-                {
-                    "title": f"ファミリーにおすすめ！{query}の設備充実キャンプ場",
-                    "url": "https://example.com/article3",
-                    "summary": "子供連れのファミリーキャンプでは、設備の充実したキャンプ場選びが重要です。この記事では、遊具や温泉、売店などの施設が整った家族向けキャンプ場を紹介しています。",
-                    "source": "家族でキャンプ",
-                },
-            ]
-
-        return related_articles
     except Exception as e:
         if DEBUG:
             print(f"関連記事検索エラー: {str(e)}")
@@ -1094,6 +1080,78 @@ def main():
     else:
         # 検索結果を表示
         display_search_results()
+
+    # 入力欄を最下層に固定表示するためのスタイル
+    st.markdown(
+        """
+        <style>
+        .fixed-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            background-color: white;
+            box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .main .block-container {
+            padding-bottom: 5rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 空のスペースを追加して、固定入力欄の下に余白を作る
+    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
+
+    # 固定入力欄のコンテナ
+    with st.container():
+        st.markdown("<div class='fixed-input'>", unsafe_allow_html=True)
+        # ユーザー入力
+        user_input = st.chat_input("キャンプ場について質問してください...")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # ユーザーからの入力があった場合の処理
+        if user_input:
+            # デバッグ出力
+            if DEBUG:
+                print(f"\n===== ユーザー入力: '{user_input}' =====")
+                print("検索処理を開始します...")
+
+            # ユーザーのメッセージをチャット履歴に追加
+            st.session_state.messages.append({"role": "user", "content": user_input})
+
+            # 検索開始メッセージを表示
+            start_message = "🔎 キャンプ場を検索中です。少々お待ちください..."
+            st.session_state.messages.append({"role": "assistant", "content": start_message})
+
+            # 検索状態を設定
+            st.session_state.search_in_progress = True
+            st.session_state.search_executed = False
+
+            # 検索クエリを保存
+            st.session_state.search_query = user_input
+
+            # 進捗状況を明示的に設定
+            st.session_state.current_progress = "キャンプ場を検索しています..."
+
+            # 進捗状況の初期化
+            st.session_state.current_progress = start_message
+
+            # 進捗キューをクリア
+            try:
+                while not global_progress_queue.empty():
+                    global_progress_queue.get()
+                if DEBUG:
+                    print("進捗キューをクリアしました")
+            except Exception as e:
+                if DEBUG:
+                    print(f"進捗キュークリアエラー: {str(e)}")
+
+            # 画面を更新して検索開始メッセージを表示
+            st.rerun()
 
 
 # アプリケーションの実行
