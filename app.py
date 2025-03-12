@@ -21,11 +21,36 @@ import threading
 import concurrent.futures
 import queue
 
-# 環境変数の読み込み
+# StreamlitCloudの環境変数設定
+if "api_keys" in st.secrets:
+    # StreamlitのSecretsから環境変数を設定
+    os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
+    os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
+    os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
+    os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
+    os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
+    os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
+
+    # デバッグ設定
+    if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
+        os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
+
+# ローカル環境変数の読み込み
 load_dotenv()
 
 # デバッグモードの設定
-DEBUG = True  # デバッグモードを強制的に有効化
+DEBUG = os.environ.get("DEBUG", "true").lower() == "true"  # デフォルトでデバッグモードを有効化
+
+# デバッグ情報の表示
+if DEBUG:
+    print("環境変数の設定:")
+    print(f"GEMINI_API_KEY: {'設定済み' if 'GEMINI_API_KEY' in os.environ else '未設定'}")
+    print(f"OPENAI_API_KEY: {'設定済み' if 'OPENAI_API_KEY' in os.environ else '未設定'}")
+    print(f"GOOGLE_CSE_ID: {'設定済み' if 'GOOGLE_CSE_ID' in os.environ else '未設定'}")
+    print(f"GOOGLE_API_KEY: {'設定済み' if 'GOOGLE_API_KEY' in os.environ else '未設定'}")
+    print(f"GOOGLE_PLACE_API_KEY: {'設定済み' if 'GOOGLE_PLACE_API_KEY' in os.environ else '未設定'}")
+    print(f"MAPBOX_TOKEN: {'設定済み' if 'MAPBOX_TOKEN' in os.environ else '未設定'}")
+    print(f"DEBUG: {DEBUG}")
 
 # ページ設定
 st.set_page_config(
