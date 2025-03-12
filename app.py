@@ -12,6 +12,7 @@ from utils.query_analyzer import analyze_query
 from utils.search_evaluator import evaluate_search_results, generate_search_summary
 from utils.parallel_search import search_and_analyze
 from utils.web_search import search_related_articles as web_search_articles
+from utils.api_config import load_streamlit_secrets, DEBUG
 from components.results_display import render_results
 from components.map_display import display_map
 import time
@@ -22,43 +23,10 @@ import concurrent.futures
 import queue
 
 # StreamlitCloudの環境変数設定
-try:
-    # Streamlitのシークレットファイルが存在するか確認
-    import os.path
-
-    secrets_paths = [
-        os.path.expanduser("~/.streamlit/secrets.toml"),
-        os.path.join(os.getcwd(), ".streamlit/secrets.toml"),
-    ]
-
-    secrets_exist = any(os.path.isfile(path) for path in secrets_paths)
-
-    if secrets_exist and hasattr(st, "secrets"):
-        if "api_keys" in st.secrets:
-            # StreamlitのSecretsから環境変数を設定
-            os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
-            os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
-            os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
-            os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
-            os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
-            os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
-
-            # デバッグ設定
-            if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
-                os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
-
-            print("StreamlitCloudのSecretsから環境変数を設定しました")
-    else:
-        print("Streamlitのシークレットファイルが見つからないか、アクセスできません。ローカルの環境変数を使用します。")
-except Exception as e:
-    print(f"Secretsの読み込みエラー: {str(e)}")
-    print("ローカルの環境変数を使用します")
+load_streamlit_secrets()
 
 # ローカル環境変数の読み込み
 load_dotenv()
-
-# デバッグモードの設定
-DEBUG = os.environ.get("DEBUG", "true").lower() == "true"  # デフォルトでデバッグモードを有効化
 
 # デバッグ情報の表示
 if DEBUG:
@@ -897,7 +865,8 @@ def search_related_articles(query):
             print(f"関連記事検索: クエリ='{query}'")
 
         # web_search.pyの関数を使用して関連記事を検索
-        return web_search_articles(query, max_results=5, enhance_summaries=True)
+        results = web_search_articles(query, max_results=5, enhance_summaries=True)
+        return results
 
     except Exception as e:
         if DEBUG:
