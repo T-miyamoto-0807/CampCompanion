@@ -191,26 +191,26 @@ if "search_in_progress" in st.session_state and st.session_state.search_in_progr
     try:
         # キューにメッセージがあれば取得（ブロックしない）
         if "progress_queue" in st.session_state and st.session_state.progress_queue is not None:
-        while not st.session_state.progress_queue.empty():
-            progress_message = st.session_state.progress_queue.get(block=False)
-            st.session_state.current_progress = progress_message
+            while not st.session_state.progress_queue.empty():
+                progress_message = st.session_state.progress_queue.get(block=False)
+                st.session_state.current_progress = progress_message
 
-            # デバッグ出力
-            if DEBUG:
-                print(f"\n===== 進捗状況の更新 =====")
-                print(f"current_progress = '{progress_message}'")
+                # デバッグ出力
+                if DEBUG:
+                    print(f"\n===== 進捗状況の更新 =====")
+                    print(f"current_progress = '{progress_message}'")
 
-            # 最後のメッセージがアシスタントのものであれば更新
-            if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "assistant":
-                # 最後のメッセージを更新
-                st.session_state.messages[-1]["content"] = progress_message
-                if DEBUG:
-                    print(f"最後のアシスタントメッセージを更新しました: '{progress_message}'")
-            else:
-                # 新しいアシスタントメッセージを追加
-                st.session_state.messages.append({"role": "assistant", "content": progress_message})
-                if DEBUG:
-                    print(f"新しいアシスタントメッセージを追加しました: '{progress_message}'")
+                # 最後のメッセージがアシスタントのものであれば更新
+                if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "assistant":
+                    # 最後のメッセージを更新
+                    st.session_state.messages[-1]["content"] = progress_message
+                    if DEBUG:
+                        print(f"最後のアシスタントメッセージを更新しました: '{progress_message}'")
+                else:
+                    # 新しいアシスタントメッセージを追加
+                    st.session_state.messages.append({"role": "assistant", "content": progress_message})
+                    if DEBUG:
+                        print(f"新しいアシスタントメッセージを追加しました: '{progress_message}'")
     except queue.Empty:
         pass
 
