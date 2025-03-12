@@ -15,32 +15,60 @@ from utils.web_search import search_related_articles as web_search_articles
 
 # api_config.pyのインポートを試みる
 try:
-    from utils.api_config import load_streamlit_secrets, DEBUG
+    from utils.api_config import load_streamlit_secrets, DEBUG, check_api_keys
 except ImportError:
     # api_config.pyが存在しない場合は、代わりの関数と変数を定義
     def load_streamlit_secrets():
         """Streamlit Cloudのシークレットから環境変数を設定する関数"""
         try:
-            if hasattr(st, "secrets"):
-                if "api_keys" in st.secrets:
-                    # StreamlitのSecretsから環境変数を設定
-                    os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
-                    os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
-                    os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
-                    os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
-                    os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
-                    os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
+            # st.secretsが存在するか確認
+            if not hasattr(st, "secrets"):
+                print("st.secretsが存在しません")
+                return False
+
+            # st.secretsにアクセスしようとしたときにFileNotFoundErrorが発生する可能性があるため、try-exceptで囲む
+            try:
+                # StreamlitCloudのシークレットから環境変数を設定
+                if hasattr(st, "secrets"):
+                    # APIキーの設定
+                    if "GEMINI_API_KEY" in st.secrets:
+                        os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
+                    if "OPENAI_API_KEY" in st.secrets:
+                        os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+                    if "GOOGLE_CSE_ID" in st.secrets:
+                        os.environ["GOOGLE_CSE_ID"] = st.secrets["GOOGLE_CSE_ID"]
+                    if "GOOGLE_API_KEY" in st.secrets:
+                        os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+                    if "GOOGLE_PLACE_API_KEY" in st.secrets:
+                        os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["GOOGLE_PLACE_API_KEY"]
+                    if "MAPBOX_TOKEN" in st.secrets:
+                        os.environ["MAPBOX_TOKEN"] = st.secrets["MAPBOX_TOKEN"]
 
                     # デバッグ設定
-                    if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
-                        os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
+                    if "DEBUG" in st.secrets:
+                        os.environ["DEBUG"] = str(st.secrets["DEBUG"]).lower()
 
                     print("StreamlitCloudのSecretsから環境変数を設定しました")
                     return True
-            return False
+                return False
+            except FileNotFoundError:
+                print("Secretsファイルが見つかりません")
+                return False
         except Exception as e:
             print(f"Secretsの読み込みエラー: {str(e)}")
             return False
+
+    # APIキーの確認と警告表示
+    def check_api_keys():
+        """必要なAPIキーが設定されているか確認し、警告を表示する関数"""
+        if not os.environ.get("GEMINI_API_KEY"):
+            print("警告: GEMINI_API_KEYが設定されていません。.envファイルに追加してください。")
+
+        if not os.environ.get("GOOGLE_PLACE_API_KEY"):
+            print("警告: GOOGLE_PLACE_API_KEYが設定されていません。.envファイルに追加してください。")
+
+        if not os.environ.get("GOOGLE_API_KEY"):
+            print("警告: GOOGLE_API_KEYが設定されていません。.envファイルに追加してください。")
 
     # デバッグモードの設定
     DEBUG = os.getenv("DEBUG", "true").lower() == "true"
@@ -55,21 +83,35 @@ import concurrent.futures
 import queue
 
 # StreamlitCloudの環境変数設定
-load_streamlit_secrets()
+try:
+    load_streamlit_secrets()
+except Exception as e:
+    print(f"StreamlitCloudの環境変数設定エラー: {str(e)}")
 
 # ローカル環境変数の読み込み
 load_dotenv()
 
+# APIキーの確認
+check_api_keys()
+
 # デバッグ情報の表示
-if DEBUG:
+if os.getenv("DEBUG", "true").lower() == "true":
     print("環境変数の設定:")
-    print(f"GEMINI_API_KEY: {'設定済み' if 'GEMINI_API_KEY' in os.environ else '未設定'}")
-    print(f"OPENAI_API_KEY: {'設定済み' if 'OPENAI_API_KEY' in os.environ else '未設定'}")
-    print(f"GOOGLE_CSE_ID: {'設定済み' if 'GOOGLE_CSE_ID' in os.environ else '未設定'}")
-    print(f"GOOGLE_API_KEY: {'設定済み' if 'GOOGLE_API_KEY' in os.environ else '未設定'}")
-    print(f"GOOGLE_PLACE_API_KEY: {'設定済み' if 'GOOGLE_PLACE_API_KEY' in os.environ else '未設定'}")
-    print(f"MAPBOX_TOKEN: {'設定済み' if 'MAPBOX_TOKEN' in os.environ else '未設定'}")
-    print(f"DEBUG: {DEBUG}")
+    print(
+        f"GEMINI_API_KEY: {'設定済み' if 'GEMINI_API_KEY' in os.environ and os.environ['GEMINI_API_KEY'] else '未設定'}"
+    )
+    print(
+        f"OPENAI_API_KEY: {'設定済み' if 'OPENAI_API_KEY' in os.environ and os.environ['OPENAI_API_KEY'] else '未設定'}"
+    )
+    print(f"GOOGLE_CSE_ID: {'設定済み' if 'GOOGLE_CSE_ID' in os.environ and os.environ['GOOGLE_CSE_ID'] else '未設定'}")
+    print(
+        f"GOOGLE_API_KEY: {'設定済み' if 'GOOGLE_API_KEY' in os.environ and os.environ['GOOGLE_API_KEY'] else '未設定'}"
+    )
+    print(
+        f"GOOGLE_PLACE_API_KEY: {'設定済み' if 'GOOGLE_PLACE_API_KEY' in os.environ and os.environ['GOOGLE_PLACE_API_KEY'] else '未設定'}"
+    )
+    print(f"MAPBOX_TOKEN: {'設定済み' if 'MAPBOX_TOKEN' in os.environ and os.environ['MAPBOX_TOKEN'] else '未設定'}")
+    print(f"DEBUG: {os.getenv('DEBUG', 'true').lower() == 'true'}")
 
 # ページ設定
 st.set_page_config(
