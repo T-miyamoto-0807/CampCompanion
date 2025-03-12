@@ -24,9 +24,26 @@ def load_streamlit_secrets():
 
         # st.secretsにアクセスしようとしたときにFileNotFoundErrorが発生する可能性があるため、try-exceptで囲む
         try:
+            # 直接st.secretsにアクセスする前に、FileNotFoundErrorを回避するための処理
+            # 以下の行でFileNotFoundErrorが発生する可能性があるため、try-exceptで囲む
+            secrets_exists = False
+            try:
+                # この行でFileNotFoundErrorが発生する可能性がある
+                secrets_exists = hasattr(st, "secrets") and len(dir(st.secrets)) > 0
+            except FileNotFoundError:
+                print("Secretsファイルが見つかりません")
+                return False
+            except Exception as e:
+                print(f"Secretsアクセスエラー: {str(e)}")
+                return False
+
+            if not secrets_exists:
+                print("Secretsが存在しないか空です")
+                return False
+
             # StreamlitCloudのシークレットから環境変数を設定
-            if hasattr(st, "secrets"):
-                # APIキーの設定
+            # APIキーの設定
+            try:
                 if "GEMINI_API_KEY" in st.secrets:
                     os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
                 if "OPENAI_API_KEY" in st.secrets:
@@ -46,9 +63,17 @@ def load_streamlit_secrets():
 
                 print("StreamlitCloudのSecretsから環境変数を設定しました")
                 return True
-            return False
+            except FileNotFoundError:
+                print("Secretsファイルが見つかりません")
+                return False
+            except Exception as e:
+                print(f"Secrets設定エラー: {str(e)}")
+                return False
         except FileNotFoundError:
             print("Secretsファイルが見つかりません")
+            return False
+        except Exception as e:
+            print(f"Secretsアクセスエラー: {str(e)}")
             return False
     except Exception as e:
         print(f"Secretsの読み込みエラー: {str(e)}")

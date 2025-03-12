@@ -13,9 +13,18 @@ from utils.search_evaluator import evaluate_search_results, generate_search_summ
 from utils.parallel_search import search_and_analyze
 from utils.web_search import search_related_articles as web_search_articles
 
+# ローカル環境変数の読み込み
+load_dotenv()
+
 # api_config.pyのインポートを試みる
 try:
     from utils.api_config import load_streamlit_secrets, DEBUG, check_api_keys
+
+    # StreamlitCloudの環境変数設定
+    try:
+        load_streamlit_secrets()
+    except Exception as e:
+        print(f"StreamlitCloudの環境変数設定エラー: {str(e)}")
 except ImportError:
     # api_config.pyが存在しない場合は、代わりの関数と変数を定義
     def load_streamlit_secrets():
@@ -54,6 +63,9 @@ except ImportError:
             except FileNotFoundError:
                 print("Secretsファイルが見つかりません")
                 return False
+            except Exception as e:
+                print(f"Secretsアクセスエラー: {str(e)}")
+                return False
         except Exception as e:
             print(f"Secretsの読み込みエラー: {str(e)}")
             return False
@@ -73,6 +85,12 @@ except ImportError:
     # デバッグモードの設定
     DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 
+    # StreamlitCloudの環境変数設定
+    try:
+        load_streamlit_secrets()
+    except Exception as e:
+        print(f"StreamlitCloudの環境変数設定エラー: {str(e)}")
+
 from components.results_display import render_results
 from components.map_display import display_map
 import time
@@ -81,15 +99,6 @@ import asyncio
 import threading
 import concurrent.futures
 import queue
-
-# StreamlitCloudの環境変数設定
-try:
-    load_streamlit_secrets()
-except Exception as e:
-    print(f"StreamlitCloudの環境変数設定エラー: {str(e)}")
-
-# ローカル環境変数の読み込み
-load_dotenv()
 
 # APIキーの確認
 check_api_keys()
