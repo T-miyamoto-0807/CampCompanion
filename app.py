@@ -342,24 +342,24 @@ if "search_in_progress" in st.session_state and st.session_state.search_in_progr
             # 検索を同期的に実行
             try:
                 # 進捗状況を報告する関数
-                    def report_progress(message):
-                        try:
-                            # セッション状態ではなくグローバル変数のキューを使用
-                            global_progress_queue.put(message)
+                def report_progress(message):
+                    try:
+                        # セッション状態ではなくグローバル変数のキューを使用
+                        global_progress_queue.put(message)
                         st.session_state.current_progress = message
-                            if DEBUG:
-                                print(f"進捗状況をキューに追加: '{message}'")
-                        except Exception as e:
-                            if DEBUG:
-                                print(f"進捗報告エラー: {str(e)}")
+                        if DEBUG:
+                            print(f"進捗状況をキューに追加: '{message}'")
+                    except Exception as e:
+                        if DEBUG:
+                            print(f"進捗報告エラー: {str(e)}")
 
-                    # 検索モジュールの関数をオーバーライド
-                    import utils.parallel_search
+                # 検索モジュールの関数をオーバーライド
+                import utils.parallel_search
 
-                    utils.parallel_search.report_progress = report_progress
+                utils.parallel_search.report_progress = report_progress
 
-                    # 初期進捗状況
-                    report_progress("🔍 キャンプ場を検索中...")
+                # 初期進捗状況
+                report_progress("🔍 キャンプ場を検索中...")
 
                 # 検索を実行（同期的に）
                 with st.spinner("キャンプ場を検索しています..."):
@@ -396,21 +396,21 @@ if "search_in_progress" in st.session_state and st.session_state.search_in_progr
                 # 検索結果を表示するために画面を更新
                 st.rerun()
 
-                except Exception as e:
-                    # エラーが発生した場合
-                    print(f"検索処理エラー: {str(e)}")
-                    import traceback
+            except Exception as e:
+                # エラーが発生した場合
+                print(f"検索処理エラー: {str(e)}")
+                import traceback
 
-                    print(traceback.format_exc())
+                print(traceback.format_exc())
 
-                    # エラーメッセージを報告
-                    try:
+                # エラーメッセージを報告
+                try:
                     if "progress_queue" in st.session_state and st.session_state.progress_queue is not None:
                         st.session_state.progress_queue.put(f"❌ 検索中にエラーが発生しました: {str(e)}")
                         st.session_state.search_in_progress = False
                         st.session_state.search_executed = False
-                    except:
-                        pass
+                except:
+                    pass
 
                 # エラーメッセージをチャットに表示
                 error_message = "検索中にエラーが発生しました。もう一度お試しください。"
@@ -554,7 +554,7 @@ if st.session_state.search_performed and st.session_state.campsites and st.sessi
                             # 要約を表示（テキストエリアで表示して見切れないようにする）
                             st.markdown("**要約**:")
                             # テキストエリアを使用して長いテキストを表示（高さを調整）
-                            summary_text = article['summary']
+                            summary_text = article["summary"]
                             st.text_area("", summary_text, height=200, label_visibility="collapsed")
 
                             # 公開日があれば表示
@@ -684,7 +684,7 @@ def display_campsite_details(campsite, index=None):
 
             # 写真がある場合は表示
             if image_url:
-                    st.image(image_url, use_column_width=True)
+                st.image(image_url, use_column_width=True)
             else:
                 st.image(default_image, use_column_width=True)
 
@@ -887,23 +887,23 @@ def display_search_results():
     tab1, tab2, tab3 = st.tabs(["📋 キャンプ場情報", "🗺️ 地図表示", "📚 関連記事"])
 
     with tab1:
-    # 検索結果の要約を表示
-    st.subheader("🔍 検索結果の要約")
-    st.write(search_summary)
+        # 検索結果の要約を表示
+        st.subheader("🔍 検索結果の要約")
+        st.write(search_summary)
 
-    # 特集キャンプ場を表示
-    if featured_campsites:
+        # 特集キャンプ場を表示
+        if featured_campsites:
             st.markdown("## ✨ おすすめキャンプ場")
-        for i, campsite in enumerate(featured_campsites[:3]):
+            for i, campsite in enumerate(featured_campsites[:3]):
                 with st.expander(f"{i+1}. {campsite.get('name', '不明なキャンプ場')}", expanded=i == 0):
-                display_campsite_card(campsite, index=f"featured_{i}")
+                    display_campsite_card(campsite, index=f"featured_{i}")
 
-    # 人気キャンプ場を表示
-    if popular_campsites:
+        # 人気キャンプ場を表示
+        if popular_campsites:
             st.markdown("## 🔥 人気のキャンプ場")
-        for i, campsite in enumerate(popular_campsites[:3]):
+            for i, campsite in enumerate(popular_campsites[:3]):
                 with st.expander(f"{i+1}. {campsite.get('name', '不明なキャンプ場')}", expanded=False):
-                display_campsite_card(campsite, index=f"popular_{i}")
+                    display_campsite_card(campsite, index=f"popular_{i}")
 
     with tab2:
         # 地図表示
@@ -969,7 +969,7 @@ def display_search_results():
                         # 要約を表示（テキストエリアで表示して見切れないようにする）
                         st.markdown("**要約**:")
                         # テキストエリアを使用して長いテキストを表示（高さを調整）
-                        summary_text = article['summary']
+                        summary_text = article["summary"]
                         st.text_area("", summary_text, height=200, label_visibility="collapsed")
 
                         # 公開日があれば表示
@@ -992,7 +992,7 @@ def display_search_results():
                             st.markdown(
                                 f"[🔍 Googleで検索](https://www.google.com/search?q={urllib.parse.quote(article['title'])})"
                             )
-    else:
+            else:
                 st.info(f"「{query}」に関連する記事が見つかりませんでした。")
         else:
             st.info("検索クエリがありません。キャンプ場を検索すると、関連記事が表示されます。")
@@ -1044,7 +1044,7 @@ def main():
             del st.session_state.selected_campsite
             st.rerun()
     else:
-    # 検索結果を表示
+        # 検索結果を表示
         display_search_results()
 
 
