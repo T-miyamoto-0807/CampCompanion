@@ -23,20 +23,33 @@ import queue
 
 # StreamlitCloudの環境変数設定
 try:
-    if "api_keys" in st.secrets:
-        # StreamlitのSecretsから環境変数を設定
-        os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
-        os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
-        os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
-        os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
-        os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
-        os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
+    # Streamlitのシークレットファイルが存在するか確認
+    import os.path
 
-        # デバッグ設定
-        if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
-            os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
+    secrets_paths = [
+        os.path.expanduser("~/.streamlit/secrets.toml"),
+        os.path.join(os.getcwd(), ".streamlit/secrets.toml"),
+    ]
 
-        print("StreamlitCloudのSecretsから環境変数を設定しました")
+    secrets_exist = any(os.path.isfile(path) for path in secrets_paths)
+
+    if secrets_exist and hasattr(st, "secrets"):
+        if "api_keys" in st.secrets:
+            # StreamlitのSecretsから環境変数を設定
+            os.environ["GEMINI_API_KEY"] = st.secrets["api_keys"]["GEMINI_API_KEY"]
+            os.environ["OPENAI_API_KEY"] = st.secrets["api_keys"]["OPENAI_API_KEY"]
+            os.environ["GOOGLE_CSE_ID"] = st.secrets["api_keys"]["GOOGLE_CSE_ID"]
+            os.environ["GOOGLE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_API_KEY"]
+            os.environ["GOOGLE_PLACE_API_KEY"] = st.secrets["api_keys"]["GOOGLE_PLACE_API_KEY"]
+            os.environ["MAPBOX_TOKEN"] = st.secrets["api_keys"]["MAPBOX_TOKEN"]
+
+            # デバッグ設定
+            if "settings" in st.secrets and "DEBUG" in st.secrets["settings"]:
+                os.environ["DEBUG"] = str(st.secrets["settings"]["DEBUG"]).lower()
+
+            print("StreamlitCloudのSecretsから環境変数を設定しました")
+    else:
+        print("Streamlitのシークレットファイルが見つからないか、アクセスできません。ローカルの環境変数を使用します。")
 except Exception as e:
     print(f"Secretsの読み込みエラー: {str(e)}")
     print("ローカルの環境変数を使用します")
