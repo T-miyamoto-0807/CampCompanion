@@ -453,7 +453,7 @@ def enhance_article_summary(article, query):
 
         # Gemini APIの設定
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-2.0-flash-lite")
 
         # 元の要約
         original_summary = article["summary"]
