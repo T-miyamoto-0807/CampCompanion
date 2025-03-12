@@ -1,5 +1,6 @@
 # 環境変数ファイル
 .env
+.streamlit/secrets.toml
 
 # キャッシュファイル
 __pycache__/
