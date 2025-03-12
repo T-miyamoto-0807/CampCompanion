@@ -143,6 +143,56 @@ st.markdown(
     .sidebar .stButton>button {
         width: 100%;
     }
+    /* ダークモード対応 */
+    @media (prefers-color-scheme: dark) {
+        .main {
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+        }
+        .stApp {
+            background-color: #1e1e1e;
+        }
+        h1, h2, h3, p, span, div {
+            color: #f0f0f0 !important;
+        }
+        .chat-message.user {
+            background-color: #2c3e50;
+            border-left: 5px solid #3498db;
+        }
+        .chat-message.assistant {
+            background-color: #2d2d2d;
+            border-left: 5px solid #2ecc71;
+        }
+        .st-bq {
+            background-color: #2d2d2d;
+            color: #f0f0f0;
+        }
+        .stTextInput>div>div>input {
+            background-color: #3d3d3d;
+            color: #f0f0f0;
+        }
+        .stTextArea>div>div>textarea {
+            background-color: #3d3d3d;
+            color: #f0f0f0;
+        }
+        .stSelectbox>div>div>div {
+            background-color: #3d3d3d;
+            color: #f0f0f0;
+        }
+        /* テキストエリアの背景色と文字色 */
+        textarea {
+            background-color: #3d3d3d !important;
+            color: #f0f0f0 !important;
+        }
+        /* データフレームの背景色と文字色 */
+        .stDataFrame {
+            background-color: #2d2d2d;
+        }
+        .stDataFrame td, .stDataFrame th {
+            background-color: #3d3d3d !important;
+            color: #f0f0f0 !important;
+        }
+    }
     </style>
     """,
     unsafe_allow_html=True,
